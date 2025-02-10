@@ -92,15 +92,15 @@ public static partial class LuaVirtualMachine
             switch (opCode)
             {
                 case OpCode.Call:
+                {
+                    var c = callInstruction.C;
+                    if (c != 0)
                     {
-                        var c = callInstruction.C;
-                        if (c != 0)
-                        {
-                            targetCount = c - 1;
-                        }
-
-                        break;
+                        targetCount = c - 1;
                     }
+
+                    break;
+                }
                 case OpCode.TForCall:
                     target += 3;
                     targetCount = callInstruction.C;
@@ -265,7 +265,7 @@ public static partial class LuaVirtualMachine
 
         try
         {
-        // This is a label to restart the execution when new function is called or restarted
+            // This is a label to restart the execution when new function is called or restarted
         Restart:
             ref var instructionsHead = ref context.Chunk.Instructions[0];
             var frameBase = context.FrameBase;
@@ -1014,11 +1014,15 @@ public static partial class LuaVirtualMachine
         var instruction = context.Instruction;
         var RA = instruction.A + context.FrameBase;
         var va = context.Stack.Get(RA);
+        var newBase = RA + 1;
+        bool isMetamethod = false;
         if (!va.TryReadFunction(out var func))
         {
             if (va.TryGetMetamethod(context.State, Metamethods.Call, out var metamethod) &&
                 metamethod.TryReadFunction(out func))
             {
+                newBase -= 1;
+                isMetamethod = true;
             }
             else
             {
@@ -1027,8 +1031,8 @@ public static partial class LuaVirtualMachine
         }
 
         var thread = context.Thread;
-        var (newBase, argumentCount, variableArgumentCount) = PrepareForFunctionCall(thread, func, instruction, RA);
-
+        var (argumentCount, variableArgumentCount) = PrepareForFunctionCall(thread, func, instruction, newBase, isMetamethod);
+        newBase += variableArgumentCount;
         var newFrame = func.CreateNewFrame(ref context, newBase, variableArgumentCount);
 
         thread.PushCallStackFrame(newFrame);
@@ -1131,6 +1135,8 @@ public static partial class LuaVirtualMachine
         var instruction = context.Instruction;
         var stack = context.Stack;
         var RA = instruction.A + context.FrameBase;
+        var newBase = RA + 1;
+        bool isMetamethod = false;
         var state = context.State;
         var thread = context.Thread;
 
@@ -1139,15 +1145,20 @@ public static partial class LuaVirtualMachine
         var va = stack.Get(RA);
         if (!va.TryReadFunction(out var func))
         {
-            if (!va.TryGetMetamethod(state, Metamethods.Call, out var metamethod) &&
-                !metamethod.TryReadFunction(out func))
+            if (va.TryGetMetamethod(state, Metamethods.Call, out var metamethod) &&
+                metamethod.TryReadFunction(out func))
+            {
+                isMetamethod = true;
+                newBase -= 1;
+            }
+            else
             {
                 LuaRuntimeException.AttemptInvalidOperation(GetTracebacks(ref context), "call", metamethod);
             }
         }
 
-        var (newBase, argumentCount, variableArgumentCount) = PrepareForFunctionTailCall(thread, func, instruction, RA);
-
+        var (argumentCount, variableArgumentCount) = PrepareForFunctionTailCall(thread, func, instruction, newBase, isMetamethod);
+        newBase = context.FrameBase + variableArgumentCount;
         var newFrame = func.CreateNewFrame(ref context, newBase, variableArgumentCount);
         thread.PushCallStackFrame(newFrame);
 
@@ -1646,7 +1657,7 @@ public static partial class LuaVirtualMachine
     // If there are variable arguments, the base of the stack is moved by that number and the values of the variable arguments are placed in front of it.
     // see: https://wubingzheng.github.io/build-lua-in-rust/en/ch08-02.arguments.html
     [MethodImpl(MethodImplOptions.NoInlining)]
-    static (int FrameBase, int ArgumentCount, int VariableArgumentCount) PrepareVariableArgument(LuaStack stack, int newBase, int argumentCount,
+    static ( int ArgumentCount, int VariableArgumentCount) PrepareVariableArgument(LuaStack stack, int newBase, int argumentCount,
         int variableArgumentCount)
     {
         var temp = newBase;
@@ -1658,51 +1669,59 @@ public static partial class LuaVirtualMachine
         var stackBuffer = stack.GetBuffer()[temp..];
         stackBuffer[..argumentCount].CopyTo(stackBuffer[variableArgumentCount..]);
         stackBuffer.Slice(argumentCount, variableArgumentCount).CopyTo(stackBuffer);
-        return (newBase, argumentCount, variableArgumentCount);
+        return (argumentCount, variableArgumentCount);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static (int FrameBase, int ArgumentCount, int VariableArgumentCount) PrepareForFunctionCall(LuaThread thread, LuaFunction function,
-        Instruction instruction, int RA)
+    static (int ArgumentCount, int VariableArgumentCount) PrepareForFunctionCall(LuaThread thread, LuaFunction function,
+        Instruction instruction, int newBase, bool isMetaMethod)
     {
         var argumentCount = instruction.B - 1;
         if (argumentCount == -1)
         {
-            argumentCount = (ushort)(thread.Stack.Count - (RA + 1));
+            argumentCount = (ushort)(thread.Stack.Count - newBase);
         }
         else
         {
-            thread.Stack.NotifyTop(RA + 1 + argumentCount);
+            if (isMetaMethod)
+            {
+                argumentCount += 1;
+            }
+
+            thread.Stack.NotifyTop(newBase + argumentCount);
         }
 
-        var newBase = RA + 1;
         var variableArgumentCount = function.GetVariableArgumentCount(argumentCount);
 
         if (variableArgumentCount <= 0)
         {
-            return (newBase, argumentCount, 0);
+            return (argumentCount, 0);
         }
 
         return PrepareVariableArgument(thread.Stack, newBase, argumentCount, variableArgumentCount);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static (int FrameBase, int ArgumentCount, int VariableArgumentCount) PrepareForFunctionTailCall(LuaThread thread, LuaFunction function,
-        Instruction instruction, int RA)
+    static (int ArgumentCount, int VariableArgumentCount) PrepareForFunctionTailCall(LuaThread thread, LuaFunction function,
+        Instruction instruction, int newBase, bool isMetaMethod)
     {
         var stack = thread.Stack;
 
         var argumentCount = instruction.B - 1;
         if (instruction.B == 0)
         {
-            argumentCount = (ushort)(stack.Count - (RA + 1));
+            argumentCount = (ushort)(stack.Count - newBase);
         }
         else
         {
-            thread.Stack.NotifyTop(RA + 1 + argumentCount);
+            if (isMetaMethod)
+            {
+                argumentCount += 1;
+            }
+
+            thread.Stack.NotifyTop(newBase + argumentCount);
         }
 
-        var newBase = RA + 1;
 
         // In the case of tailcall, the local variables of the caller are immediately discarded, so there is no need to retain them.
         // Therefore, a call can be made without allocating new registers.
@@ -1718,7 +1737,7 @@ public static partial class LuaVirtualMachine
 
         if (variableArgumentCount <= 0)
         {
-            return (newBase, argumentCount, 0);
+            return (argumentCount, 0);
         }
 
         return PrepareVariableArgument(thread.Stack, newBase, argumentCount, variableArgumentCount);

@@ -86,4 +86,27 @@ assert(metatable.__newindex.x == 2)
 ";
         await state.DoStringAsync(source);
     }
+
+    [Test]
+    public async Task Test_Metamethod_Call()
+    {
+        var source = @"
+metatable = {
+    __call = function(a, b)
+        return a.x + b
+    end
+}
+
+local a = {}
+a.x = 1
+setmetatable(a, metatable)
+assert(a(2) == 3)
+function tail(a, b)
+    return a(b)
+end
+tail(a, 3)
+assert(tail(a, 3) == 4)
+";
+        await state.DoStringAsync(source);
+    }
 }

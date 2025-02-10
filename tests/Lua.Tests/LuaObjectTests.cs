@@ -1,3 +1,5 @@
+using Lua.Standard;
+
 namespace Lua.Tests;
 
 [LuaObject]
@@ -31,6 +33,12 @@ public partial class TestUserData
     public double InstanceMethodWithReturnValue()
     {
         return Property;
+    }
+
+    [LuaMetamethod(LuaObjectMetamethod.Call)]
+    public string Call()
+    {
+        return "Called!";
     }
 }
 
@@ -119,5 +127,22 @@ public class LuaObjectTests
 
         Assert.That(results, Has.Length.EqualTo(1));
         Assert.That(results[0], Is.EqualTo(new LuaValue(1)));
+    }
+
+    [Test]
+    public async Task Test_CallMetamethod()
+    {
+        var userData = new TestUserData();
+
+        var state = LuaState.Create();
+        state.OpenBasicLibrary();
+        state.Environment["test"] = userData;
+        var results = await state.DoStringAsync("""
+                                                assert(test() == 'Called!')
+                                                return test()
+                                                """);
+
+        Assert.That(results, Has.Length.EqualTo(1));
+        Assert.That(results[0], Is.EqualTo(new LuaValue("Called!")));
     }
 }
