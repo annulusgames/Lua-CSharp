@@ -17,8 +17,8 @@ else
 end";
             var actual = LuaSyntaxTree.Parse(source).Nodes[0];
             var expected = new IfStatementNode(
-                new() { ConditionNode = new BooleanLiteralNode(true, new(1, 3)), ThenNodes = [] },
-                [new() { ConditionNode = new BooleanLiteralNode(true, new(2, 7)), ThenNodes = [] }],
+                new() { Position = new(1,8),ConditionNode = new BooleanLiteralNode(true, new(1, 3)), ThenNodes = [] },
+                [new() {Position = new(2,13), ConditionNode = new BooleanLiteralNode(true, new(2, 7)), ThenNodes = [] }],
                 [],
                 new(1, 0));
 

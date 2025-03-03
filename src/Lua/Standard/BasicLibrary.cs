@@ -95,7 +95,7 @@ public sealed class BasicLibrary
         // do not use LuaState.DoFileAsync as it uses the newExecutionContext
         var text = await File.ReadAllTextAsync(arg0, cancellationToken);
         var fileName = Path.GetFileName(arg0);
-        var chunk = LuaCompiler.Default.Compile(text, fileName);
+        var chunk = LuaCompiler.Default.Compile(text, "@"+fileName);
 
         return await new Closure(context.State, chunk).InvokeAsync(context, buffer, cancellationToken);
     }
@@ -106,7 +106,18 @@ public sealed class BasicLibrary
             ? "(error object is a nil value)"
             : context.Arguments[0];
 
-        throw new LuaRuntimeException(context.State.GetTraceback(), value);
+        Traceback t;
+        try
+        {
+           t = context.State.GetTraceback(context.Thread);
+            
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
+        }
+        throw new LuaRuntimeException(t, value);
     }
 
     public ValueTask<int> GetMetatable(LuaFunctionExecutionContext context, Memory<LuaValue> buffer, CancellationToken cancellationToken)
@@ -200,7 +211,7 @@ public sealed class BasicLibrary
         {
             if (arg0.TryRead<string>(out var str))
             {
-                var chunk = LuaCompiler.Default.Compile(str, arg1 ?? "chunk");
+                var chunk = LuaCompiler.Default.Compile(str, arg1 ?? str);
                 buffer.Span[0] = new Closure(context.State, chunk, arg3);
                 return new(1);
             }

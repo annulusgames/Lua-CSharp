@@ -24,6 +24,7 @@ public sealed class LuaCoroutine : LuaThread, IValueTaskSource<LuaCoroutine.Yiel
 
     ManualResetValueTaskSourceCore<ResumeContext> resume;
     ManualResetValueTaskSourceCore<YieldContext> yield;
+    Traceback? traceback;
 
     public LuaCoroutine(LuaFunction function, bool isProtectedMode)
     {
@@ -43,6 +44,9 @@ public sealed class LuaCoroutine : LuaThread, IValueTaskSource<LuaCoroutine.Yiel
 
     public bool IsProtectedMode { get; }
     public LuaFunction Function { get; }
+    
+    
+    internal Traceback? LuaTraceback => traceback;
 
     public override async ValueTask<int> ResumeAsync(LuaFunctionExecutionContext context, Memory<LuaValue> buffer, CancellationToken cancellationToken = default)
     {
@@ -179,7 +183,7 @@ public sealed class LuaCoroutine : LuaThread, IValueTaskSource<LuaCoroutine.Yiel
                 if (IsProtectedMode)
                 {
                     ArrayPool<LuaValue>.Shared.Return(this.buffer);
-
+                    traceback = (ex as LuaRuntimeException)?.LuaTraceback;
                     Volatile.Write(ref status, (byte)LuaThreadStatus.Dead);
                     buffer.Span[0] = false;
                     buffer.Span[1] = ex is LuaRuntimeException { ErrorObject: not null } luaEx ? luaEx.ErrorObject.Value : ex.Message;

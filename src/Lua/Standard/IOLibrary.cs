@@ -1,4 +1,5 @@
 using Lua.Internal;
+using Lua.Runtime;
 using Lua.Standard.Internal;
 
 namespace Lua.Standard;
@@ -96,8 +97,9 @@ public sealed class IOLibrary
         if (context.ArgumentCount == 0)
         {
             var file = context.State.Environment["io"].Read<LuaTable>()["stdio"].Read<FileHandle>();
-            buffer.Span[0] = new LuaFunction("iterator", (context, buffer, ct) =>
+            buffer.Span[0] = new CsClosure("iterator",[new (file)] ,static (context, buffer, ct) =>
             {
+                var file = context.GetCsClosure()!.UpValues[0].Read<FileHandle>();
                 var resultCount = IOHelper.Read(context.State, file, "lines", 0, [], buffer, true);
                 if (resultCount > 0 && buffer.Span[0].Type is LuaValueType.Nil)
                 {
@@ -115,10 +117,15 @@ public sealed class IOLibrary
             IOHelper.Open(context.State, fileName, "r", methodBuffer.AsMemory(), true);
 
             var file = methodBuffer[0].Read<FileHandle>();
-            var formats = context.Arguments[1..].ToArray();
+            var upValues = new LuaValue[context.Arguments.Length];
+            upValues[0] = new(file);
+            context.Arguments[1..].CopyTo(upValues[1..]);
 
-            buffer.Span[0] = new LuaFunction("iterator", (context, buffer, ct) =>
+            buffer.Span[0] = new CsClosure("iterator", upValues, static (context, buffer, ct) =>
             {
+                var upValues = context.GetCsClosure()!.UpValues;
+                var file = upValues[0].Read<FileHandle>();
+                var formats = upValues.AsSpan(1);
                 var resultCount = IOHelper.Read(context.State, file, "lines", 0, formats, buffer, true);
                 if (resultCount > 0 && buffer.Span[0].Type is LuaValueType.Nil)
                 {

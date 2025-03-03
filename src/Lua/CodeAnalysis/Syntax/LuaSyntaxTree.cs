@@ -1,6 +1,6 @@
 namespace Lua.CodeAnalysis.Syntax;
 
-public record LuaSyntaxTree(SyntaxNode[] Nodes) : SyntaxNode(new SourcePosition(0, 0))
+public record LuaSyntaxTree(SyntaxNode[] Nodes,SourcePosition Position) : SyntaxNode(Position)
 {
     public override TResult Accept<TContext, TResult>(ISyntaxNodeVisitor<TContext, TResult> visitor, TContext context)
     {

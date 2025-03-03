@@ -4,6 +4,7 @@ public record IfStatementNode(IfStatementNode.ConditionAndThenNodes IfNode, IfSt
 {
     public record ConditionAndThenNodes
     {
+        public SourcePosition Position;
         public required ExpressionNode ConditionNode;
         public required StatementNode[] ThenNodes;
     }

@@ -176,11 +176,12 @@ public class FileHandle : ILuaUserData
             ? context.Arguments[1]
             : "*l";
 
-        LuaValue[] formats = [format];
 
-        buffer.Span[0] = new LuaFunction("iterator", (context, buffer, cancellationToken) =>
+        buffer.Span[0] = new CsClosure("iterator", [new (file),format],static (context, buffer, cancellationToken) =>
         {
-            var resultCount = IOHelper.Read(context.State, file, "lines", 0, formats, buffer, true);
+            var upValues = context.GetCsClosure()!.UpValues.AsSpan();
+            var file = upValues[0].Read<FileHandle>();
+            var resultCount = IOHelper.Read(context.State, file, "lines", 0, upValues[1..], buffer, true);
             return new(resultCount);
         });
 

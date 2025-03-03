@@ -24,6 +24,7 @@ public sealed class Closure : LuaFunction
 
     public Chunk Proto => proto;
     public ReadOnlySpan<UpValue> UpValues => upValues.AsSpan();
+    internal Span<UpValue> GetUpValuesSpan() => upValues.AsSpan();
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal LuaValue GetUpValue(int index)

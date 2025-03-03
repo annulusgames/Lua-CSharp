@@ -54,15 +54,15 @@ assert(not s and string.find(a, "dead") and coroutine.status(f) == "dead")
 
 
 -- yields in tail calls
--- local function foo (i) return coroutine.yield(i) end
--- f = coroutine.wrap(function ()
---   for i=1,10 do
---     assert(foo(i) == _G.x)
---   end
---   return 'a'
--- end)
--- for i=1,10 do _G.x = i; assert(f(i) == i) end
--- _G.x = 'xuxu'; assert(f('xuxu') == 'a')
+local function foo (i) return coroutine.yield(i) end
+f = coroutine.wrap(function ()
+  for i=1,10 do
+    assert(foo(i) == _G.x)
+  end
+  return 'a'
+end)
+for i=1,10 do _G.x = i; assert(f(i) == i) end
+_G.x = 'xuxu'; assert(f('xuxu') == 'a')
 
 -- recursive
 function pf (n, i)
@@ -78,33 +78,33 @@ for i=1,10 do
 end
 
 -- sieve
--- function gen (n)
---   return coroutine.wrap(function ()
---     for i=2,n do coroutine.yield(i) end
---   end)
--- end
+function gen (n)
+  return coroutine.wrap(function ()
+    for i=2,n do coroutine.yield(i) end
+  end)
+end
 
 
--- function filter (p, g)
---   return coroutine.wrap(function ()
---     while 1 do
---       local n = g()
---       if n == nil then return end
---       if math.fmod(n, p) ~= 0 then coroutine.yield(n) end
---     end
---   end)
--- end
+function filter (p, g)
+  return coroutine.wrap(function ()
+    while 1 do
+      local n = g()
+      if n == nil then return end
+      if math.fmod(n, p) ~= 0 then coroutine.yield(n) end
+    end
+  end)
+end
 
--- local x = gen(100)
--- local a = {}
--- while 1 do
---   local n = x()
---   if n == nil then break end
---   table.insert(a, n)
---   x = filter(n, x)
--- end
+local x = gen(100)
+local a = {}
+while 1 do
+  local n = x()
+  if n == nil then break end
+  table.insert(a, n)
+  x = filter(n, x)
+end
 
--- assert(#a == 25 and a[#a] == 97)
+assert(#a == 25 and a[#a] == 97)
 
 
 -- yielding across C boundaries

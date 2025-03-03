@@ -12,7 +12,7 @@ public class LuaTests
         state = LuaState.Create();
         state.OpenStandardLibraries();
     }
-    
+
     [Test]
     public async Task Test_Closure()
     {
@@ -53,6 +53,12 @@ public class LuaTests
     public async Task Test_Coroutine()
     {
         await state.DoFileAsync(FileHelper.GetAbsolutePath("tests-lua/coroutine.lua"));
+    }
+
+    [Test]
+    public async Task Test_Debug_Mini()
+    {
+        await state.DoFileAsync(FileHelper.GetAbsolutePath("tests-lua/db.lua"));
     }
 
     [Test]

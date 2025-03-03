@@ -1,5 +1,7 @@
 using System.Text;
+using System.Text.RegularExpressions;
 using Lua.Internal;
+using Lua.Runtime;
 
 namespace Lua.Standard;
 
@@ -429,17 +431,19 @@ public sealed class StringLibrary
 
         var regex = StringHelper.ToRegex(pattern);
         var matches = regex.Matches(s);
-        var i = 0;
 
-        buffer.Span[0] = new LuaFunction("iterator", (context, buffer, cancellationToken) =>
+        buffer.Span[0] = new CsClosure("iterator",[new LuaValue(matches),0],static (context, buffer, cancellationToken) =>
         {
+            var upValues = context.GetCsClosure()!.UpValues;
+            var matches = upValues[0].Read<MatchCollection>();
+            var i = upValues[1].Read<int>();
             if (matches.Count > i)
             {
                 var match = matches[i];
                 var groups = match.Groups;
 
                 i++;
-
+                 upValues[1] = i;
                 if (groups.Count == 1)
                 {
                     buffer.Span[0] = match.Value;

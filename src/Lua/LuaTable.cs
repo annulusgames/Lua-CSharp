@@ -19,6 +19,8 @@ public sealed class LuaTable
     readonly LuaValueDictionary dictionary;
     LuaTable? metatable;
 
+    internal LuaValueDictionary Dictionary => dictionary;
+
     public LuaValue this[LuaValue key]
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
