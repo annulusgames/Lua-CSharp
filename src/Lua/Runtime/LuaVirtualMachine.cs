@@ -932,16 +932,17 @@ public static partial class LuaVirtualMachine
         }
         catch (Exception e)
         {
-            context.PopOnTopCallStackFrames();
             context.State.CloseUpValues(context.Thread, context.FrameBase);
             LuaValueArrayPool.Return1024(context.ResultsBuffer, true);
             if (e is not LuaRuntimeException)
             {
-                var newException = new LuaRuntimeException(GetTracebacks(ref context), e);
+                var newException = new LuaRuntimeException(context.State.GetTraceback(), e);
+                context.PopOnTopCallStackFrames();
                 context = default;
                 throw newException;
             }
 
+            context.PopOnTopCallStackFrames();
             throw;
         }
     }
