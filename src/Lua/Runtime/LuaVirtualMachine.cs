@@ -1264,6 +1264,7 @@ public static partial class LuaVirtualMachine
         table.EnsureArrayCapacity((instruction.C - 1) * 50 + count);
         stack.GetBuffer().Slice(RA + 1, count)
             .CopyTo(table.GetArraySpan()[((instruction.C - 1) * 50)..]);
+        stack.PopUntil(RA + 1);
     }
 
     static void ComparePostOperation(ref VirtualMachineExecutionContext context)
