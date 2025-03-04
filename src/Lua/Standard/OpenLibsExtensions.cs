@@ -130,6 +130,18 @@ public static class OpenLibsExtensions
         state.Environment["table"] = table;
         state.LoadedModules["table"] = table;
     }
+    
+    public static void OpenDebugLibrary(this LuaState state)
+    {
+        var debug = new LuaTable(0, DebugLibrary.Instance.Functions.Length);
+        foreach (var func in DebugLibrary.Instance.Functions)
+        {
+            debug[func.Name] = func;
+        }
+
+        state.Environment["debug"] = debug;
+        state.LoadedModules["debug"] = debug;
+    }
 
     public static void OpenStandardLibraries(this LuaState state)
     {
@@ -142,5 +154,6 @@ public static class OpenLibsExtensions
         state.OpenOperatingSystemLibrary();
         state.OpenStringLibrary();
         state.OpenTableLibrary();
+        state.OpenDebugLibrary();
     }
 }

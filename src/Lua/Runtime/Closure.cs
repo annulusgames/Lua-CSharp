@@ -24,6 +24,7 @@ public sealed class Closure : LuaFunction
 
     public Chunk Proto => proto;
     public ReadOnlySpan<UpValue> UpValues => upValues.AsSpan();
+    internal Span<UpValue> GetUpValuesSpan() => upValues.AsSpan();
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal LuaValue GetUpValue(int index)
@@ -47,7 +48,7 @@ public sealed class Closure : LuaFunction
     {
         if (description.IsInRegister)
         {
-            return state.GetOrAddUpValue(thread, thread.GetCallStackFrames()[^1].Base + description.Index);
+            return state.GetOrAddUpValue(thread, thread.GetCurrentFrame().Base + description.Index);
         }
 
         if (description.Index == -1) // -1 is global environment
@@ -55,7 +56,7 @@ public sealed class Closure : LuaFunction
             return envUpValue;
         }
 
-        if (thread.GetCallStackFrames()[^1].Function is Closure parentClosure)
+        if (thread.GetCurrentFrame().Function is Closure parentClosure)
         {
             return parentClosure.UpValues[description.Index];
         }

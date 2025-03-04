@@ -22,8 +22,15 @@ public class LuaFunction(string name, Func<LuaFunctionExecutionContext, Memory<L
         };
 
         context.Thread.PushCallStackFrame(frame);
+
+
         try
         {
+            if (context.Thread.CallOrReturnHookMask.Value != 0 && !context.Thread.IsInHook)
+            {
+                return await LuaVirtualMachine.ExecuteCallHook(context, buffer, cancellationToken);
+            }
+
             return await Func(context, buffer, cancellationToken);
         }
         finally

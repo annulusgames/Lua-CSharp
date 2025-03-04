@@ -60,6 +60,7 @@ public class FunctionCompilationContext : IDisposable
 
     // upvalues
     FastListCore<UpValueInfo> upvalues;
+    FastListCore<LocalValueInfo> localVariables;
 
     // loop
     FastListCore<BreakDescription> breakQueue;
@@ -89,6 +90,16 @@ public class FunctionCompilationContext : IDisposable
     /// Weather the function has variable arguments
     /// </summary>
     public bool HasVariableArguments { get; set; }
+
+    /// <summary>
+    /// Line number where the function is defined
+    /// </summary>
+    public int LineDefined { get; set; }
+
+    /// <summary>
+    /// Last line number where the function is defined
+    /// </summary>
+    public int LastLineDefined { get; set; }
 
     /// <summary>
     /// Parent scope context
@@ -127,6 +138,7 @@ public class FunctionCompilationContext : IDisposable
             instructionPositions.Add(position);
             return;
         }
+
         ref var lastInstruction = ref instructions.AsSpan()[^1];
         var opcode = instruction.OpCode;
         switch (opcode)
@@ -156,6 +168,7 @@ public class FunctionCompilationContext : IDisposable
                             }
                     }
                 }
+
                 break;
             case OpCode.GetTable:
                 {
@@ -169,8 +182,8 @@ public class FunctionCompilationContext : IDisposable
                             incrementStackPosition = false;
                             return;
                         }
-
                     }
+
                     break;
                 }
             case OpCode.SetTable:
@@ -197,6 +210,7 @@ public class FunctionCompilationContext : IDisposable
                                     return;
                                 }
                             }
+
                             lastInstruction = Instruction.SetTable((byte)(lastB), instruction.B, instruction.C);
                             instructionPositions[^1] = position;
                             incrementStackPosition = false;
@@ -217,7 +231,6 @@ public class FunctionCompilationContext : IDisposable
                         var last2OpCode = last2Instruction.OpCode;
                         if (last2OpCode is OpCode.LoadK or OpCode.Move)
                         {
-
                             var last2A = last2Instruction.A;
                             if (last2A != lastLocal && instruction.C == last2A)
                             {
@@ -231,6 +244,7 @@ public class FunctionCompilationContext : IDisposable
                             }
                         }
                     }
+
                     break;
                 }
             case OpCode.Unm:
@@ -238,11 +252,13 @@ public class FunctionCompilationContext : IDisposable
             case OpCode.Len:
                 if (lastInstruction.OpCode == OpCode.Move && lastLocal != lastInstruction.A && lastInstruction.A == instruction.B)
                 {
-                    lastInstruction = instruction with { B = lastInstruction.B }; ;
+                    lastInstruction = instruction with { B = lastInstruction.B };
+                    ;
                     instructionPositions[^1] = position;
                     incrementStackPosition = false;
                     return;
                 }
+
                 break;
             case OpCode.Return:
                 if (lastInstruction.OpCode == OpCode.Move && instruction.B == 2 && lastInstruction.B < 256)
@@ -252,6 +268,7 @@ public class FunctionCompilationContext : IDisposable
                     incrementStackPosition = false;
                     return;
                 }
+
                 break;
         }
 
@@ -300,6 +317,17 @@ public class FunctionCompilationContext : IDisposable
             proto = null;
             return false;
         }
+    }
+
+    public void AddLocalVariable(ReadOnlyMemory<char> name, LocalVariableDescription description)
+    {
+        localVariables.Add(new LocalValueInfo()
+        {
+            Name = name,
+            Index = description.RegisterIndex,
+            StartPc = description.StartPc,
+            EndPc = Instructions.Length,
+        });
     }
 
     public void AddUpValue(UpValueInfo upValue)
@@ -378,6 +406,7 @@ public class FunctionCompilationContext : IDisposable
             {
                 instruction.A = startPosition;
             }
+
             instruction.SBx = endPosition - description.Index;
         }
 
@@ -409,8 +438,10 @@ public class FunctionCompilationContext : IDisposable
     {
         // add return
         instructions.Add(Instruction.Return(0, 1));
-        instructionPositions.Add(instructionPositions.Length == 0 ? default : instructionPositions[^1]);
-
+        instructionPositions.Add( new (LastLineDefined, 0));
+        Scope.RegisterLocalsToFunction();
+        var locals = localVariables.AsSpan().ToArray();
+        Array.Sort(locals, (x, y) => x.Index.CompareTo(y.Index));
         var chunk = new Chunk()
         {
             Name = ChunkName ?? "chunk",
@@ -418,9 +449,13 @@ public class FunctionCompilationContext : IDisposable
             SourcePositions = instructionPositions.AsSpan().ToArray(),
             Constants = constants.AsSpan().ToArray(),
             UpValues = upvalues.AsSpan().ToArray(),
+            Locals = locals,
             Functions = functions.AsSpan().ToArray(),
             ParameterCount = ParameterCount,
+            HasVariableArguments = HasVariableArguments,
             MaxStackPosition = MaxStackPosition,
+            LineDefined = LineDefined,
+            LastLineDefined = LastLineDefined,
         };
 
         foreach (var function in functions.AsSpan())
@@ -442,6 +477,7 @@ public class FunctionCompilationContext : IDisposable
         constantIndexMap.Clear();
         constants.Clear();
         upvalues.Clear();
+        localVariables.Clear();
         functionMap.Clear();
         functions.Clear();
         breakQueue.Clear();

@@ -14,6 +14,7 @@ public enum LuaValueType : byte
     Number,
     Function,
     Thread,
+    LightUserData,
     UserData,
     Table,
 }
@@ -136,6 +137,16 @@ public readonly struct LuaValue : IEquatable<LuaValue>
                 }
                 else
                 {
+                    break;
+                }
+            case LuaValueType.LightUserData:
+                {
+                    if (referenceValue is T tValue)
+                    {
+                        result = tValue;
+                        return true;
+                    }
+
                     break;
                 }
             case LuaValueType.UserData:
@@ -360,6 +371,7 @@ public readonly struct LuaValue : IEquatable<LuaValue>
             case LuaValueType.Thread:
             case LuaValueType.Function:
             case LuaValueType.Table:
+            case LuaValueType.LightUserData:
             case LuaValueType.UserData:
                 {
                     var v = referenceValue!;
@@ -376,6 +388,13 @@ public readonly struct LuaValue : IEquatable<LuaValue>
         if (Type == LuaValueType.Boolean) return value != 0;
         if (Type is LuaValueType.Nil) return false;
         return true;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public LuaValue(object obj)
+    {
+        Type = LuaValueType.LightUserData;
+        referenceValue = obj;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -517,6 +536,7 @@ public readonly struct LuaValue : IEquatable<LuaValue>
             LuaValueType.Function => $"function: {referenceValue!.GetHashCode()}",
             LuaValueType.Thread => $"thread: {referenceValue!.GetHashCode()}",
             LuaValueType.Table => $"table: {referenceValue!.GetHashCode()}",
+            LuaValueType.LightUserData => $"userdata: {referenceValue!.GetHashCode()}",
             LuaValueType.UserData => $"userdata: {referenceValue!.GetHashCode()}",
             _ => "",
         };
@@ -552,6 +572,11 @@ public readonly struct LuaValue : IEquatable<LuaValue>
         else if (type == typeof(LuaThread))
         {
             result = LuaValueType.Thread;
+            return true;
+        }
+        else if (type == typeof(ILuaUserData) || type.IsAssignableFrom(typeof(ILuaUserData)))
+        {
+            result = LuaValueType.UserData;
             return true;
         }
 

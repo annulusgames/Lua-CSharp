@@ -100,6 +100,11 @@ public class LuaRuntimeException : LuaException
         throw new LuaRuntimeException(traceback, $"bad argument #{argumentId} to '{functionName}' ({expected} expected, got {actual})");
     }
 
+    public static void BadArgument(Traceback traceback, int argumentId, string functionName, string message)
+    {
+        throw new LuaRuntimeException(traceback, $"bad argument #{argumentId} to '{functionName}' ({message})");
+    }
+
     public static void BadArgumentNumberIsNotInteger(Traceback traceback, int argumentId, string functionName)
     {
         throw new LuaRuntimeException(traceback, $"bad argument #{argumentId} to '{functionName}' (number has no integer representation)");

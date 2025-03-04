@@ -153,6 +153,14 @@ public class ScopeCompilationContext : IDisposable
 
         return false;
     }
+    
+    public void RegisterLocalsToFunction()
+    {
+        foreach (var localVariable in localVariables)
+        {
+            Function.AddLocalVariable(localVariable.Key, localVariable.Value);
+        }
+    }
 
     /// <summary>
     /// Resets the values ​​held in the context.
@@ -173,6 +181,7 @@ public class ScopeCompilationContext : IDisposable
     /// </summary>
     public void Dispose()
     {
+        RegisterLocalsToFunction();
         Function = null!;
         Pool.Return(this);
     }

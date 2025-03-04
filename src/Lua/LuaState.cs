@@ -16,14 +16,19 @@ public sealed class LuaState
     FastStackCore<LuaThread> threadStack;
     readonly LuaTable packages = new();
     readonly LuaTable environment;
+    readonly LuaTable registry = new();
     readonly UpValue envUpValue;
     bool isRunning;
+
+    FastStackCore<LuaDebug.LuaDebugBuffer> debugBufferPool;
 
     internal UpValue EnvUpValue => envUpValue;
     internal ref FastStackCore<LuaThread> ThreadStack => ref threadStack;
     internal ref FastListCore<UpValue> OpenUpValues => ref openUpValues;
+    internal ref FastStackCore<LuaDebug.LuaDebugBuffer> DebugBufferPool => ref debugBufferPool;
 
     public LuaTable Environment => environment;
+    public LuaTable Registry => registry;
     public LuaTable LoadedModules => packages;
     public LuaMainThread MainThread => mainThread;
     public LuaThread CurrentThread
@@ -90,7 +95,7 @@ public sealed class LuaState
     {
         if (threadStack.Count == 0)
         {
-            return new()
+            return new(this)
             {
                 RootFunc = (Closure)MainThread.GetCallStackFrames()[0].Function,
                 StackFrames = MainThread.GetCallStackFrames()[1..]
@@ -103,6 +108,7 @@ public sealed class LuaState
         {
             list.Add(frame);
         }
+
         foreach (var thread in threadStack.AsSpan())
         {
             if (thread.CallStack.Count == 0) continue;
@@ -111,9 +117,34 @@ public sealed class LuaState
                 list.Add(frame);
             }
         }
-        return new()
+
+        return new(this)
         {
             RootFunc = (Closure)MainThread.GetCallStackFrames()[0].Function,
+            StackFrames = list.AsSpan().ToArray()
+        };
+    }
+
+    internal Traceback GetTraceback(LuaThread thread)
+    {
+        using var list = new PooledList<CallStackFrame>(8);
+        foreach (var frame in thread.GetCallStackFrames()[1..])
+        {
+            list.Add(frame);
+        }
+        Closure rootFunc;
+        if (thread.GetCallStackFrames()[0].Function is Closure closure)
+        {
+            rootFunc = closure;
+        }
+        else
+        {
+            rootFunc = (Closure)MainThread.GetCallStackFrames()[0].Function;
+        }
+
+        return new(this)
+        {
+            RootFunc = rootFunc,
             StackFrames = list.AsSpan().ToArray()
         };
     }

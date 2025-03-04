@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -100,6 +101,17 @@ public struct FastStackCore<T>
         return result;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal ref T PeekRef()
+    {
+        if (tail == 0)
+        {
+            ThrowForEmptyStack();
+        }
+
+        return ref array[tail - 1]!;
+    }
+
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void EnsureCapacity(int capacity)
@@ -130,7 +142,8 @@ public struct FastStackCore<T>
         array.AsSpan(0, tail).Clear();
         tail = 0;
     }
-    
+
+    [DoesNotReturn]
     void ThrowForEmptyStack()
     {
         throw new InvalidOperationException("Empty stack");

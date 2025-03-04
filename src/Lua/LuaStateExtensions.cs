@@ -30,7 +30,7 @@ public static class LuaStateExtensions
     public static async ValueTask<int> DoFileAsync(this LuaState state, string path, Memory<LuaValue> buffer, CancellationToken cancellationToken = default)
     {
         var text = await File.ReadAllTextAsync(path, cancellationToken);
-        var fileName = Path.GetFileName(path);
+        var fileName = "@"+Path.GetFileName(path);
         var syntaxTree = LuaSyntaxTree.Parse(text, fileName);
         var chunk = LuaCompiler.Default.Compile(syntaxTree, fileName);
         return await state.RunAsync(chunk, buffer, cancellationToken);

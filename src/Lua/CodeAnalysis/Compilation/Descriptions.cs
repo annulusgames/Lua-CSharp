@@ -6,6 +6,7 @@ namespace Lua.CodeAnalysis.Compilation
     public readonly record struct LocalVariableDescription
     {
         public required byte RegisterIndex { get; init; }
+        public required int StartPc { get; init; }
     }
 
     public readonly record struct FunctionDescription
